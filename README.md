@@ -9,9 +9,19 @@
 ## PROJECT INFO
 
 -   **Node.js app designed to showcase Gemini code generation and function calling approaches**
+
 -   **The app includes two parts:**
+  
     **1. code execution which allows the AI to run computer code directly within its system to solve tasks, analyze data, or produce outputs programmatically.**
+    
     **2. Function calling - allows the AI to interact with external functions or APIs (predefined blocks of code) to fetch information, perform actions, or connect with other systems. It has integration with third party ai services for searching hotels attractions ad flight tickets**
+
+##Preview
+
+**1. Code execution demo**
+https://github.com/user-attachments/assets/2964cce6-fea6-41e8-bc95-77f5559f95d0
+
+
 
 ## Features
 
