@@ -1,9 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import axios from 'axios';
 import dotenv from 'dotenv';
+import util from 'util';
 dotenv.config();
-
-const genAI = new GoogleGenerativeAI(process.env.API_KEY);
 
 async function setAttractionsValues(city) {
     try {
@@ -63,7 +62,7 @@ async function searchFlights({ origin, destination, date, passengers, cabinClass
 
         // Parse the flights from itineraries
         const flights = response.data.itineraries.map((itinerary) => {
-            const pricingOption = itinerary.pricing_options?.[0]; // Get the first pricing option
+            const pricingOption = itinerary.pricing_options?.[0];
             const price = pricingOption?.price?.amount || 'N/A';
             const lastUpdated = pricingOption?.price?.last_updated || 'N/A';
 
@@ -86,18 +85,42 @@ async function searchFlights({ origin, destination, date, passengers, cabinClass
             };
         });
 
-        return {
+        // Sort flights by price
+        const sortedFlights = flights.sort((a, b) => {
+            const priceA = a.price.amount === 'N/A' ? Infinity : parseFloat(a.price.amount);
+            const priceB = b.price.amount === 'N/A' ? Infinity : parseFloat(b.price.amount);
+            return priceA - priceB;
+        });
+
+        // Get top 3 flights
+        const top3Flights = sortedFlights.slice(0, 3).map((flight) => ({
+            id: flight.id,
+            price: flight.price.amount,
+            carriers: flight.carriers,
+            score: flight.score
+        }));
+
+        // Format the response
+        const formattedResponse = {
             origin,
             destination,
             date,
+            passengers,
+            cabinClass,
             totalFlights: flights.length,
-            flights: flights.sort((a, b) => {
-                // Sort by price, handling 'N/A' values
-                const priceA = a.price.amount === 'N/A' ? Infinity : a.price.amount;
-                const priceB = b.price.amount === 'N/A' ? Infinity : b.price.amount;
-                return priceA - priceB;
-            })
+            top3Flights: top3Flights,
+            cheapestPrice: top3Flights[0]?.price || 'N/A',
+            summary: `Found ${
+                flights.length
+            } flights from ${origin} to ${destination} on ${date} for ${passengers} passenger(s) in ${cabinClass} class. The cheapest flight costs $${
+                top3Flights[0]?.price || 'N/A'
+            } USD.`,
+            top3Summary: top3Flights
+                .map((flight, index) => `Flight ${index + 1}: $${flight.price} USD, Carrier(s): ${flight.carriers.join(', ')}, Score: ${flight.score}`)
+                .join('\n')
         };
+
+        return formattedResponse;
     } catch (error) {
         console.error('Error details:', error.response?.data || error.message);
         throw new Error(`Error fetching flights: ${error.message}`);
@@ -240,6 +263,12 @@ async function searchHotels({ cityId, checkin, checkout, rooms, adults }) {
             return getLowestPrice(a) - getLowestPrice(b);
         });
 
+        // Get top 3 hotels
+        const top3Hotels = sortedHotels.slice(0, 3).map((hotel) => ({
+            name: hotel.name,
+            rating: hotel.rating,
+            lowestPrice: Math.min(...hotel.prices.map((p) => parseFloat(p.price.replace('$', '').replace(',', ''))))
+        }));
         return {
             cityId,
             dates: {
@@ -249,7 +278,8 @@ async function searchHotels({ cityId, checkin, checkout, rooms, adults }) {
             rooms,
             adults,
             totalHotels: sortedHotels.length,
-            hotels: sortedHotels
+            top3Hotels: top3Hotels,
+            allHotels: sortedHotels // Keep this if you still want all hotels in the response
         };
     } catch (error) {
         if (error.response?.status === 401) {
@@ -313,7 +343,7 @@ const searchHotelsFunctionDeclaration = {
     name: 'searchHotels',
     parameters: {
         type: 'OBJECT',
-        description: 'Search for hotels in a city',
+        description: 'Search for top 3 hotels in a city',
         properties: {
             cityId: {
                 type: 'STRING',
@@ -352,6 +382,8 @@ const functions = {
     }
 };
 
+const genAI = new GoogleGenerativeAI(process.env.API_KEY);
+
 const generativeModel = genAI.getGenerativeModel({
     model: 'gemini-1.5-flash',
     tools: {
@@ -363,43 +395,56 @@ const chat = generativeModel.startChat();
 
 async function processChat(prompt) {
     try {
-        // Send the message to the model
         const result = await chat.sendMessage(prompt);
-        // Check if functionCalls exists and has elements
-        const functionCalls = result.response.functionCalls();
-
-        if (!functionCalls || functionCalls.length === 0) {
+        const call = result.response.functionCalls()[0];
+        if (!call) {
             console.log('No function calls received from the model');
             return;
         }
 
-        const call = functionCalls[0];
-
-        // Call the appropriate function based on the name
         const apiResponse = await functions[call.name](call.args);
 
-        // Send the API response back to the model
-        const result2 = await chat.sendMessage([
-            {
-                functionResponse: {
-                    name: call.name,
-                    response: apiResponse
-                }
-            }
-        ]);
+        const detailedPrompt = formatResponse(call.name, apiResponse);
 
-        console.log('Final response:', result2.response.candidates[0].content);
+        const finalResult = await chat.sendMessage(detailedPrompt);
+        console.log('Final response:', finalResult.response.text());
     } catch (error) {
         console.error('Error:', error);
     }
 }
 
+function formatResponse(functionName, apiResponse) {
+    const formatters = {
+        searchFlights: (res) => `
+            Flight search results:
+            ${res.summary}
+            Top 3 Flights:
+            ${res.top3Summary}
+        `,
+        searchHotels: (res) => `
+            Hotel search results:
+            Found ${res.totalHotels} hotels in ${res.cityId} from ${res.dates.checkin} to ${res.dates.checkout} for ${res.adults} adults in ${
+            res.rooms
+        } room(s).
+            Top 3 Hotels:
+            ${res.top3Hotels.map((hotel, i) => `${i + 1}. ${hotel.name} - Rating: ${hotel.rating}, Lowest Price: $${hotel.lowestPrice}`).join('\n')}
+        `,
+        searchAttractions: (res) => `
+            Top attractions in ${res.city}:
+            ${res.attractions.map((attr, i) => `${i + 1}. ${attr.name} - Rating: ${attr.rating}, Address: ${attr.address}`).join('\n')}
+        `,
+        default: (res) => `Search results:\n${JSON.stringify(res, null, 2)}`
+    };
+
+    const formatter = formatters[functionName] || formatters.default;
+    return `${formatter(apiResponse)}\nPlease provide a detailed response that includes this information.`;
+}
+
 // Example usage:
 // For attractions:
-processChat('what are the most popular attractions in Tokyo, Japan?');
+//processChat('what are the most popular attractions in Tokyo, Japan?');
 
 // For flights:
 // processChat('find flights from Berlin to Tokyo on January 18, 2025 for 1 passenger in Economy class');
 
-// For hotels:
 // processChat('find hotels in New York from January 25 to January 26, 2025 for 2 adults in 1 room');
