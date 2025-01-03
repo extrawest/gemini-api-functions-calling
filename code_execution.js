@@ -49,7 +49,8 @@ async function main() {
 
             if (userQuestion1 !== '' && userQuestion2 !== '') {
                 const result = await model.generateContent(userQuestion1 + userQuestion2);
-                console.log('Response:', result.response);
+                const response = result.response;
+                console.log('Response:', response.candidates[0].content);
             }
         } catch (error) {
             console.error('An error occurred:', error);
