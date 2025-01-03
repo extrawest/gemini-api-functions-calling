@@ -19,8 +19,20 @@
 ##Preview
 
 **1. Code execution demo**
+
 https://github.com/user-attachments/assets/2964cce6-fea6-41e8-bc95-77f5559f95d0
 
+**2. Functions calling: Search Attractions demo**
+
+https://github.com/user-attachments/assets/ab304296-d5db-48c7-a6cf-630463621fcf
+
+**3. Functions calling: Search Flights demo**
+
+https://github.com/user-attachments/assets/237cb0b8-9191-42f2-9b6d-f2b06ec00395
+
+**3. Functions calling: Search Hotels demo**
+
+https://github.com/user-attachments/assets/0c083c68-1212-40f6-80d1-85548510aac1
 
 
 ## Features
