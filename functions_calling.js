@@ -1,8 +1,9 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import util from 'util';
 dotenv.config();
+
+const genAI = new GoogleGenerativeAI(process.env.API_KEY);
 
 async function setAttractionsValues(city) {
     try {
@@ -351,8 +352,6 @@ const functions = {
     }
 };
 
-const genAI = new GoogleGenerativeAI(process.env.API_KEY);
-
 const generativeModel = genAI.getGenerativeModel({
     model: 'gemini-1.5-flash',
     tools: {
@@ -402,4 +401,5 @@ processChat('what are the most popular attractions in Tokyo, Japan?');
 // For flights:
 // processChat('find flights from Berlin to Tokyo on January 18, 2025 for 1 passenger in Economy class');
 
+// For hotels:
 // processChat('find hotels in New York from January 25 to January 26, 2025 for 2 adults in 1 room');
