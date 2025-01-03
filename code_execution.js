@@ -9,14 +9,14 @@ const model = genAI.getGenerativeModel({
     model: 'gemini-1.5-pro',
     tools: [
         {
-            codeExecution: {},
-        },
-    ],
+            codeExecution: {}
+        }
+    ]
 });
 
 const rl = readline.createInterface({
     input: process.stdin,
-    output: process.stdout,
+    output: process.stdout
 });
 
 async function askQuestion(query) {
@@ -30,9 +30,7 @@ async function askQuestion(query) {
 async function main() {
     while (true) {
         try {
-            const userQuestion1 = await askQuestion(
-                "Enter your condition (or type 'exit' to quit): "
-            );
+            const userQuestion1 = await askQuestion("Enter your condition (or type 'exit' to quit): ");
 
             if (userQuestion1.toLowerCase() === 'exit') {
                 console.log('Exiting the program. Goodbye!');
@@ -41,9 +39,7 @@ async function main() {
             }
             let userQuestion2;
             if (userQuestion1 !== '') {
-                userQuestion2 = await askQuestion(
-                    "Enter your question (or type 'exit' to quit): "
-                );
+                userQuestion2 = await askQuestion("Enter your question (or type 'exit' to quit): ");
                 if (userQuestion2.toLowerCase() === 'exit') {
                     console.log('Exiting the program. Goodbye!');
                     rl.close();
@@ -52,10 +48,8 @@ async function main() {
             }
 
             if (userQuestion1 !== '' && userQuestion2 !== '') {
-                const result = await model.generateContent(
-                    userQuestion1 + userQuestion2
-                );
-                const response = result.response;
+                const result = await model.generateContent(userQuestion1 + userQuestion2);
+                console.log('Response:', result.response);
             }
         } catch (error) {
             console.error('An error occurred:', error);
